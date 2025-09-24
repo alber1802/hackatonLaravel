@@ -17,8 +17,30 @@ class GoogleAuthController extends Controller
      */
     public function redirectToGoogle()
     {
-        return Socialite::driver('google')
-            ->scopes(['openid', 'profile', 'email'])
+        // Configurar Socialite con opciones de Guzzle para desarrollo
+        $socialite = Socialite::driver('google');
+        
+        if (config('app.env') === 'local') {
+            $socialite->setHttpClient(
+                new \GuzzleHttp\Client([
+                    'verify' => false,
+                    'timeout' => 30,
+                    'curl' => [
+                        CURLOPT_SSL_VERIFYPEER => false,
+                        CURLOPT_SSL_VERIFYHOST => false,
+                    ]
+                ])
+            );
+        }
+
+        return $socialite->scopes([
+                'openid', 
+                'profile', 
+                'email',
+                'https://www.googleapis.com/auth/classroom.courses.readonly',
+                'https://www.googleapis.com/auth/classroom.coursework.students.readonly',
+                'https://www.googleapis.com/auth/classroom.rosters.readonly'
+            ])
             ->redirect();
     }
 
@@ -28,7 +50,23 @@ class GoogleAuthController extends Controller
     public function handleGoogleCallback()
     {
         try {
-            $googleUser = Socialite::driver('google')->user();
+            // Configurar Socialite con opciones de Guzzle para desarrollo
+            $socialite = Socialite::driver('google');
+            
+            if (config('app.env') === 'local') {
+                $socialite->setHttpClient(
+                    new \GuzzleHttp\Client([
+                        'verify' => false,
+                        'timeout' => 30,
+                        'curl' => [
+                            CURLOPT_SSL_VERIFYPEER => false,
+                            CURLOPT_SSL_VERIFYHOST => false,
+                        ]
+                    ])
+                );
+            }
+
+            $googleUser = $socialite->user();
             
             // Check if user already exists
             $user = User::where('google_id', $googleUser->id)
@@ -41,6 +79,7 @@ class GoogleAuthController extends Controller
                     'google_id' => $googleUser->id,
                     'access_token' => $googleUser->token,
                     'refresh_token' => $googleUser->refreshToken,
+                    'avatar' => $googleUser->avatar,
                 ]);
             } else {
                 // Create new user
@@ -50,6 +89,7 @@ class GoogleAuthController extends Controller
                     'google_id' => $googleUser->id,
                     'access_token' => $googleUser->token,
                     'refresh_token' => $googleUser->refreshToken,
+                    'avatar' => $googleUser->avatar,
                     'password' => Hash::make(Str::random(24)), // Random password for security
                     'email_verified_at' => now(),
                 ]);
@@ -64,11 +104,11 @@ class GoogleAuthController extends Controller
             // Store token in session or return it
             session(['api_token' => $token]);
 
-            // Redirect to frontend with success
-            return redirect()->to(config('app.frontend_url', 'http://localhost:3000') . '/auth/success?token=' . $token);
+            // Redirect to dashboard
+            return redirect('/dashboard')->with('success', 'Has iniciado sesión correctamente');
 
         } catch (\Exception $e) {
-            return redirect()->to(config('app.frontend_url', 'http://localhost:3000') . '/auth/error?message=' . urlencode($e->getMessage()));
+            return redirect('/login')->with('error', 'Error al iniciar sesión: ' . $e->getMessage());
         }
     }
 

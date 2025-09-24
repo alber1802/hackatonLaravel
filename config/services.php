@@ -38,9 +38,13 @@ return [
         'client_id' => env('GOOGLE_CLIENT_ID'),
         'client_secret' => env('GOOGLE_CLIENT_SECRET'),
         'redirect' => env('GOOGLE_REDIRECT_URI'),
-    ],
-    'guzzle' => [
-        'verify' => 'C:\php\extras\ssl\cacert.pem',
+        'guzzle' => [
+            'verify' => env('APP_ENV') === 'local' ? false : true,
+            'curl' => env('APP_ENV') === 'local' ? [
+                CURLOPT_SSL_VERIFYPEER => false,
+                CURLOPT_SSL_VERIFYHOST => false,
+            ] : [],
+        ],
     ],
 
 
