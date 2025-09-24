@@ -17,6 +17,13 @@ Route::get('/login', function () {
 Route::middleware('auth')->group(function () {
     Route::get('/dashboard', [DashboardController::class, 'index']);
     Route::get('/dashboard/refresh', [DashboardController::class, 'refreshData']);
+    Route::get('/dashboard/refresh-stats', [DashboardController::class, 'refreshStats']);
+    Route::get('/dashboard/refresh-tasks', [DashboardController::class, 'refreshTasks']);
+    Route::get('/dashboard/refresh-notifications', [DashboardController::class, 'refreshNotifications']);
+    Route::post('/dashboard/mark-task-completed', [DashboardController::class, 'markTaskCompleted']);
+    Route::post('/dashboard/mark-notification-read', [DashboardController::class, 'markNotificationRead']);
+    Route::post('/dashboard/mark-all-notifications-read', [DashboardController::class, 'markAllNotificationsRead']);
+    Route::post('/dashboard/update-notification-setting', [DashboardController::class, 'updateNotificationSetting']);
 });
 
 // Google OAuth routes
