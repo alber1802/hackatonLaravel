@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Http\Client\Pool;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
@@ -67,6 +68,7 @@ class DashboardController extends Controller
         try {
             // Configurar HTTP client para desarrollo (deshabilitar verificación SSL)
             $httpClient = Http::withToken($user->access_token);
+
             if (app()->environment('local')) {
                 $httpClient = $httpClient->withOptions([
                     'verify' => false,
@@ -94,15 +96,21 @@ class DashboardController extends Controller
                     $totalAssignments = 0;
                     $totalStudents = 0;
                     $pendingAssignments = 0;
-                    
+
                     foreach ($coursesData['courses'] as $course) {
                         $courseId = $course['id'];
                         
-                        // Get course work (assignments)
                         try {
-                            $courseWorkResponse = $httpClient->get("https://classroom.googleapis.com/v1/courses/{$courseId}/courseWork");
-                            
-                            if ($courseWorkResponse->successful()) {
+                            $responses = $httpClient->pool(fn (Pool $pool) => [
+                                $pool->get("http://classroom.googleapis.com/v1/courses/{$courseId}/courseWork"),
+                                $pool->get("http://classroom.googleapis.com/v1/courses/{$courseId}/students"),
+                            ]);
+
+                            $courseWorkResponse = $responses[0];
+                            $studentsResponse = $responses[1];
+
+                            //dd($courseWorkResponse, $studentsResponse);
+                            if ($courseWorkResponse->status() == 200) {
                                 $courseWorkData = $courseWorkResponse->json();
                                 if (isset($courseWorkData['courseWork'])) {
                                     $assignments = count($courseWorkData['courseWork']);
@@ -112,20 +120,14 @@ class DashboardController extends Controller
                                     $pendingAssignments += ceil($assignments * 0.3); // Assume 30% are pending
                                 }
                             }
-                        } catch (\Exception $e) {
-                            Log::warning("Failed to get course work for course {$courseId}: " . $e->getMessage());
-                        }
-                        
-                        // Get students
-                        try {
-                            $studentsResponse = $httpClient->get("https://classroom.googleapis.com/v1/courses/{$courseId}/students");
-                            
-                            if ($studentsResponse->successful()) {
+
+                            if ($studentsResponse->status() == 200) {
                                 $studentsData = $studentsResponse->json();
                                 if (isset($studentsData['students'])) {
                                     $totalStudents += count($studentsData['students']);
                                 }
                             }
+
                         } catch (\Exception $e) {
                             Log::warning("Failed to get students for course {$courseId}: " . $e->getMessage());
                         }
@@ -144,8 +146,8 @@ class DashboardController extends Controller
             }
 
             // Generate notifications and recent activity
-            $this->generateNotifications($data);
-            $data['recent_activity'] = $this->generateSampleActivity($data['courses_count']);
+            // $this->generateNotifications($data);
+            // $data['recent_activity'] = $this->generateSampleActivity($data['courses_count']);
 
         } catch (\Exception $e) {
             Log::error('Error fetching Classroom data: ' . $e->getMessage());
@@ -153,7 +155,7 @@ class DashboardController extends Controller
             // Try to get basic profile info as fallback
             $this->tryGetBasicProfile($user, $data);
         }
-
+        dd($data);
         return $data;
     }
 

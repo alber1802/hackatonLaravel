@@ -137,11 +137,12 @@
             <!-- Right Column - Notifications and Profile -->
             <div class="space-y-6">
                 <!-- Notifications Component -->
-                @include('components.notifications', [
+                
+                {{-- @include('components.notifications', [
                     'notifications' => $classroomData['notifications'],
                     'unread_count' => $classroomData['unread_notifications'],
                     'settings' => ['auto_notifications' => true, 'task_reminders' => true]
-                ])
+                ]) --}}
 
                 <!-- User Profile Card -->
                 <div class="bg-white rounded-lg shadow-sm border border-gray-200">
